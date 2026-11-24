@@ -1,0 +1,18 @@
+{
+  "brand": "NomadGuard",
+  "description": "A fictional travel-protection service designed for frequent travelers. Covers flight delays, cancellations and travel disruptions.",
+  "audience": "Frequent travelers aged approximately 25-40.",
+  "problem": [
+    "Flight delays, cancellations and travel disruptions create uncertainty",
+    "They create stress",
+    "They cause unexpected financial loss"
+  ],
+  "core_message": "Travel with confidence knowing that you are protected when things go wrong.",
+  "brand_feel": ["modern", "premium", "trustworthy", "confident", "visually polished"],
+  "format": {
+    "min_seconds": 10,
+    "max_seconds": 15,
+    "aspect_ratio": "9:16",
+    "platforms": ["Instagram Reels", "TikTok"]
+  }
+}
