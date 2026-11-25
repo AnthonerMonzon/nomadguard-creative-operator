@@ -18,6 +18,8 @@ brief.json ─► Strategy (4 angles) ─► Selection (scored + rationale) ─�
 
 Produced by Gemini (strategy, storyboard, creative QA) and Veo 3.1 on Vertex AI (3 × 4s scenes), then assembled by the pipeline. Technical QA passes every check. Creative QA scored it 5.6/10 → `needs_review`: the vision model flagged realism (slight AI smoothing, synthetic-looking crowd blur in scene 1) and hook strength (details in the report). An earlier evaluation of the same footage scored 5.8, a reminder that single LLM-judge scores are noisy and are treated as advisory.
 
+**Time spent:** about 3.5 hours of active work, excluding Veo render time.
+
 ## Setup
 
 Requires Node ≥ 20.12. ffmpeg/ffprobe ship as npm packages, so there is nothing else to install.
