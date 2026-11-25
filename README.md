@@ -16,7 +16,7 @@ brief.json ─► Strategy (4 angles) ─► Selection (scored + rationale) ─�
 | [`deliverables/report.md`](deliverables/report.md) | Run report: all 4 angles with scores, selection rationale, storyboard + exact Veo prompts, QA results |
 | [`deliverables/strategy.json`](deliverables/strategy.json), [`deliverables/storyboard.json`](deliverables/storyboard.json) | Raw structured output from the same run |
 
-Produced by Gemini (strategy, storyboard, creative QA) and Veo 3.1 on Vertex AI (3 × 4s scenes), then assembled by the pipeline. Technical QA passes every check. Creative QA scored it 5.8/10 → `needs_review`: the vision model flagged hook strength and slight AI motion distortion on background figures in scene 1 (details in the report).
+Produced by Gemini (strategy, storyboard, creative QA) and Veo 3.1 on Vertex AI (3 × 4s scenes), then assembled by the pipeline. Technical QA passes every check. Creative QA scored it 5.6/10 → `needs_review`: the vision model flagged realism (slight AI smoothing, synthetic-looking crowd blur in scene 1) and hook strength (details in the report). An earlier evaluation of the same footage scored 5.8, a reminder that single LLM-judge scores are noisy and are treated as advisory.
 
 ## Setup
 
@@ -97,7 +97,7 @@ scripts/test.mjs   launches vitest from a normalised cwd (Windows drive-letter f
 | `providers/VideoProvider.ts` | `generate() / getStatus() / getResult()` + `PromptBuilder`. `VeoProvider` (real) and `MockProvider` (offline). New provider = one class + one line in `factory.ts` |
 | `pipeline/generateScenes.ts` | Per-scene async lifecycle: submit, poll, download, verify, retry with a new seed |
 | `pipeline/orchestrator.ts` | Job state machine `CREATED → PLANNING → (PLANNED) → GENERATING → ASSEMBLING → EVALUATING → FINALIZED` / `FAILED`, checkpointed to disk |
-| `media/assemble.ts` | Crops out letterbox bars baked into a clip, normalises clips to 1080×1920@30, burns in sound-off captions, renders the branded end card, encodes H.264/AAC with faststart |
+| `media/assemble.ts` | Crops out letterbox bars baked into a clip, normalises clips to 1080×1920@30, burns in animated sound-off captions, renders the branded end card (blurred last shot, staggered reveal, rounded CTA button), encodes H.264/AAC with faststart |
 | `qa/technical.ts`, `qa/creative.ts` | Hard gate (exists, decodes end to end, duration, resolution, 9:16, audio, black frames, baked-in letterbox) and advisory vision review |
 
 ## Key decisions
@@ -106,6 +106,7 @@ scripts/test.mjs   launches vitest from a normalised cwd (Windows drive-letter f
 - **Dimensions aren't enough to trust a clip.** A real Veo 3.1 render came back as a correct 1080×1920 file with a letterboxed picture baked in. Technical QA now measures the actual picture area with `cropdetect` and fails on baked-in bars, and assembly crops them out before scaling to full-bleed 9:16.
 - **Scenes are generated separately, then assembled by us.** This gives per-shot control, retries and a hook built on purpose. The cost is cross-shot consistency, mitigated by a **style bible** (protagonist, wardrobe, world, look) pasted verbatim into every prompt.
 - **No text in AI footage.** Video models garble text and logos, so captions and the end card (brand, core message, CTA) are rendered with ffmpeg and are always pixel-perfect. The negative prompt bans text, logos and phone screens.
+- **Graphics designed for a feed, not subtitles.** Captions are heavy sentence-case type on a soft top gradient (no boxes), with a teal brand tick and an eased slide-up; the hook caption is on screen from frame 0. The end card reuses the last shot, blurred and navy-tinted, so the ad ends in its own world, then reveals brand → headline → a rounded teal CTA button in sequence. Re-rendering the graphics only needs `reassemble`, never a new video render.
 - **Feasibility is a selection criterion.** Angles are scored on `ai_feasibility` and `sound_off_clarity` as well as hook and brief fit. The best idea on paper is worthless if Veo can't render it.
 - **Money-aware reliability.** The provider `jobRef` is persisted *before* polling, so a crash or timeout resumes the same paid render instead of resubmitting. 429/5xx errors are retried with backoff without spending an attempt. Filtered or bad clips get a new seed, up to 3 attempts. Non-retryable errors stop that scene only, and finished clips are always kept.
 - **Human gate before spend.** `--plan-only` stops at the storyboard; `resume` approves it, including any validated edits to `storyboard.json`. `--angle N` overrides the model's choice. `reassemble` re-runs editing and QA on clips already paid for.

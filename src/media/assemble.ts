@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Storyboard } from '../domain/schemas.js';
@@ -30,7 +31,32 @@ interface DrawTextOpts {
   color?: string;
   box?: string; // box colour, e.g. black@0.45
   boxBorder?: number;
-  fadeIn?: number;
+  alpha?: string; // drawtext alpha expression (animation)
+  shadow?: boolean;
+}
+
+/** 0→1 progress of an animation starting at `start` seconds and lasting `dur`. */
+const progress = (start: number, dur: number) => `min(1,max(0,(t-${start})/${dur}))`;
+
+/** Use a heavier/lighter cut of the configured font when it sits next to it (e.g. Segoe UI Black beside Segoe UI Bold). */
+function fontVariant(base: string | undefined, file: string): string | undefined {
+  if (!base) return base;
+  const candidate = path.join(path.dirname(base), file);
+  return existsSync(candidate) ? candidate : base;
+}
+
+const TEAL_RGB = [0x3f, 0xd0, 0xc9] as const;
+
+/** Anti-aliased rounded pill (radius = h/2) as an RGBA video source, fading in at `start`. */
+function pillSource(w: number, h: number, seconds: string, start: number): string {
+  const r = h / 2;
+  const a = `255*clip(${r}+0.5-hypot(max(0,abs(X-${w / 2})-${w / 2 - r}),abs(Y-${r})),0,1)`;
+  return `color=c=black:s=${w}x${h}:r=${FPS}:d=${seconds},format=rgba,geq=r=${TEAL_RGB[0]}:g=${TEAL_RGB[1]}:b=${TEAL_RGB[2]}:a='${a}',fade=t=in:st=${start}:d=0.3:alpha=1`;
+}
+
+/** Top-down dark gradient behind captions so white type reads on any footage, without hard boxes. */
+function scrimSource(h: number): string {
+  return `color=c=black:s=${W}x${h}:r=${FPS}:d=1,trim=end_frame=1,format=rgba,geq=r=0:g=0:b=0:a='165*pow(1-Y/${h},1.7)'`;
 }
 
 function drawtext(o: DrawTextOpts): string {
@@ -42,9 +68,10 @@ function drawtext(o: DrawTextOpts): string {
     `fontcolor=${o.color ?? 'white'}`,
     'line_spacing=14',
     'x=(w-text_w)/2',
-    `y=${o.y}`,
+    `y='${o.y}'`,
     o.box ? `box=1:boxcolor=${o.box}:boxborderw=${o.boxBorder ?? 24}` : '',
-    o.fadeIn ? `alpha='min(1,t/${o.fadeIn})'` : '',
+    o.shadow ? 'shadowcolor=black@0.45:shadowx=0:shadowy=4' : '',
+    o.alpha ? `alpha='${o.alpha}'` : '',
   ];
   return 'drawtext=' + parts.filter(Boolean).join(':');
 }
@@ -66,15 +93,37 @@ export interface AssembleInput {
 export async function assemble(input: AssembleInput): Promise<string> {
   const textDir = path.join(input.workDir, 'text');
   await mkdir(textDir, { recursive: true });
-  /** One drawtext per line, each centred; drawtext itself left-aligns multi-line text. Returns a filter chain. */
-  const textLayer = async (name: string, text: string, maxChars: number, o: Omit<DrawTextOpts, 'textFile' | 'y'> & { y: number }) => {
+  const fonts = {
+    heavy: fontVariant(input.fontFile, 'seguibl.ttf'),
+    semibold: fontVariant(input.fontFile, 'seguisb.ttf'),
+  };
+  type Anim = { start: number; dur: number; slide: number };
+  /**
+   * One drawtext per line, each centred; drawtext itself left-aligns multi-line text. Returns a filter chain.
+   * With `anim`, the block fades in while easing up by `slide` px.
+   */
+  const textLayer = async (
+    name: string,
+    text: string,
+    maxChars: number,
+    o: Omit<DrawTextOpts, 'textFile' | 'y' | 'alpha'> & { y: number; anim?: Anim; lineHeight?: number },
+  ) => {
     const lines = wrapText(text, maxChars).split('\n');
-    const step = Math.round(o.size * 1.25 + (o.box ? (o.boxBorder ?? 24) : 0));
+    const step = Math.round(o.size * (o.lineHeight ?? 1.18) + (o.box ? (o.boxBorder ?? 24) : 0));
+    const p = o.anim ? progress(o.anim.start, o.anim.dur) : '';
     const layers: string[] = [];
     for (const [i, line] of lines.entries()) {
       const file = `${name}-${i}.txt`;
       await writeFile(path.join(textDir, file), line, 'utf8');
-      layers.push(drawtext({ ...o, textFile: `text/${file}`, y: String(Math.round(o.y + i * step)) }));
+      const y = Math.round(o.y + i * step);
+      layers.push(
+        drawtext({
+          ...o,
+          textFile: `text/${file}`,
+          y: o.anim ? `${y}+${o.anim.slide}*pow(1-${p},3)` : String(y),
+          alpha: o.anim ? p : undefined,
+        }),
+      );
     }
     return layers.join(',');
   };
@@ -89,11 +138,28 @@ export async function assemble(input: AssembleInput): Promise<string> {
     // Strip bars the model baked into the picture, then scale-to-fill as usual (costs some edge, keeps full-bleed 9:16).
     const area = await detectContentArea(path.join(input.workDir, clip.file));
     const debar = area && isLetterboxed(area) ? `crop=${area.w}:${area.h}:${area.x}:${area.y},` : '';
-    let v = `[${i}:v]${debar}scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS},tpad=stop_mode=clone:stop_duration=2,trim=duration=${d},setpts=PTS-STARTPTS`;
+    const base = `[${i}:v]${debar}scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS},tpad=stop_mode=clone:stop_duration=2,trim=duration=${d},setpts=PTS-STARTPTS`;
+    const isLast = i === input.clips.length - 1;
+    // The last shot's final frame becomes the (blurred) end-card background, so the ad ends on its own world.
+    filters.push(isLast ? `${base},split=2[base${i}][endsrc]` : `${base}[base${i}]`);
+
     if (clip.text.trim()) {
-      v += ',' + (await textLayer(`scene-${i + 1}`, clip.text.toUpperCase(), 20, { fontFile: input.fontFile, size: 68, y: H * 0.14, box: 'black@0.45', boxBorder: 28, fadeIn: i === 0 ? 0 : 0.2 }));
+      // Caption: heavy sentence-case type on a soft top gradient, teal brand tick above, eased slide-up.
+      // The hook (scene 1) is on screen from frame 0: no entrance delay where scroll-or-stay is decided.
+      const capY = Math.round(H * 0.105);
+      const anim = i === 0 ? undefined : { start: 0.08, dur: 0.35, slide: 28 };
+      filters.push(`${scrimSource(720)}[scrim${i}]`);
+      filters.push(
+        [
+          `[base${i}][scrim${i}]overlay=0:0`,
+          `drawbox=x=(iw-84)/2:y=${capY - 40}:w=84:h=7:color=${BRAND.teal}:t=fill`,
+          await textLayer(`scene-${i + 1}`, clip.text, 18, { fontFile: fonts.heavy, size: 80, y: capY, shadow: true, lineHeight: 1.12, anim }),
+          'format=yuv420p',
+        ].join(',') + `[v${i}]`,
+      );
+    } else {
+      filters.push(`[base${i}]null[v${i}]`);
     }
-    filters.push(`${v}[v${i}]`);
 
     const hasAudio = (await probe(path.join(input.workDir, clip.file)))?.streams?.some((s) => s.codec_type === 'audio');
     filters.push(
@@ -107,14 +173,40 @@ export async function assemble(input: AssembleInput): Promise<string> {
   // End card.
   const ec = input.storyboard.end_card;
   const ecd = ec.duration.toFixed(3);
+  const lastDur = input.clips.at(-1)!.duration;
+  const brandY = Math.round(H * 0.33);
+  // CTA pill: width follows the label (heavy caps ≈ 0.64em per char), clamped to a comfortable thumb target.
+  const ctaText = `${ec.cta.toUpperCase()}  →`;
+  const ctaSize = 46;
+  const pillH = 132;
+  const pillW = Math.min(980, Math.max(560, Math.round(ctaText.length * ctaSize * 0.64 + 140)));
+  const pillY = Math.round(H * 0.66);
+  const ctaStart = 0.6;
+  const ctaFile = 'end-cta-0.txt';
+  await writeFile(path.join(textDir, ctaFile), ctaText, 'utf8');
+
   filters.push(
     [
-      `color=c=${BRAND.navy}:s=${W}x${H}:r=${FPS}:d=${ecd},format=yuv420p`,
-      await textLayer('end-brand', input.brand, 40, { fontFile: input.fontFile, size: 120, y: H * 0.36 }),
-      `drawbox=x=(iw-160)/2:y=${Math.round(H * 0.36 + 165)}:w=160:h=6:color=${BRAND.teal}:t=fill`,
-      await textLayer('end-headline', ec.headline, 22, { fontFile: input.fontFile, size: 58, y: H * 0.36 + 225, color: 'white@0.92' }),
-      await textLayer('end-cta', ec.cta.toUpperCase(), 40, { fontFile: input.fontFile, size: 50, y: H * 0.7, color: BRAND.navy, box: BRAND.teal, boxBorder: 34 }),
-      'fade=t=in:st=0:d=0.3',
+      `[endsrc]trim=start=${Math.max(0, lastDur - 0.05).toFixed(3)},setpts=PTS-STARTPTS,trim=end_frame=1`,
+      `tpad=stop_mode=clone:stop_duration=${ecd},trim=duration=${ecd},setpts=PTS-STARTPTS`,
+      'gblur=sigma=32',
+      `drawbox=x=0:y=0:w=iw:h=ih:color=${BRAND.navy}@0.80:t=fill`,
+    ].join(',') + '[endbg]',
+  );
+  filters.push(`${pillSource(pillW, pillH, ecd, ctaStart)}[pill]`);
+  filters.push(
+    [
+      `[endbg][pill]overlay=x=(main_w-overlay_w)/2:y=${pillY}`,
+      await textLayer('end-brand', input.brand, 40, { fontFile: fonts.heavy, size: 132, y: brandY, anim: { start: 0.05, dur: 0.4, slide: 36 } }),
+      `drawbox=x=(iw-120)/2:y=${brandY + 190}:w=120:h=7:color=${BRAND.teal}:t=fill:enable='gte(t,0.3)'`,
+      await textLayer('end-headline', ec.headline, 22, {
+        fontFile: fonts.semibold, size: 62, y: brandY + 245, color: 'white@0.92', anim: { start: 0.3, dur: 0.4, slide: 24 },
+      }),
+      drawtext({
+        textFile: `text/${ctaFile}`, fontFile: fonts.heavy, size: ctaSize, color: BRAND.navy,
+        y: `${pillY}+(${pillH}-text_h)/2`, alpha: progress(ctaStart, 0.3),
+      }),
+      'format=yuv420p',
     ].join(',') + '[vend]',
   );
   filters.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${ecd}[aend]`);
