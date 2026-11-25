@@ -1,4 +1,4 @@
-import { copyFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AppConfig } from '../core/config.js';
 import { classifyError, PipelineError } from '../core/errors.js';
@@ -12,7 +12,8 @@ import type { PromptBuilder, VideoProvider } from '../providers/VideoProvider.js
 import { runCreativeQa } from '../qa/creative.js';
 import { runTechnicalQa, SOCIAL_SPEC } from '../qa/technical.js';
 import { generateScenes, type SceneGenDeps } from './generateScenes.js';
-import { generateStoryboard, generateStrategy, selectAngle } from './planning.js';
+import { StoryboardSchema } from '../domain/schemas.js';
+import { generateStoryboard, generateStrategy, selectAngle, storyboardProblems } from './planning.js';
 import { renderReport } from './report.js';
 
 export interface PipelineDeps {
@@ -49,6 +50,7 @@ export class Pipeline {
     const { store, log } = this.d;
     const job = await store.load(jobId);
     if (job.status === 'FINALIZED') return job;
+    if (job.status === 'PLANNED') await this.applyReviewedStoryboard(job);
 
     const wasFailed = job.status === 'FAILED';
     const start = this.startStage(job);
@@ -102,6 +104,29 @@ export class Pipeline {
     }
   }
 
+  /**
+   * Re-run assembly + QA from the clips already on disk, without touching the video provider. For when
+   * post-processing improves (or a caption changes) after the expensive renders are done.
+   */
+  async reassemble(jobId: string): Promise<Job> {
+    const { store, log } = this.d;
+    const job = await store.load(jobId);
+    const missing = job.scenes.filter((s) => s.status !== 'SUCCEEDED' || !s.clip);
+    if (missing.length || !job.scenes.length) {
+      throw new PipelineError('INVALID_REQUEST', `job ${job.id} has no complete set of clips (scenes ${missing.map((s) => s.sceneId).join(', ')}); use resume`, { retryable: false });
+    }
+    if (job.status !== 'FINALIZED' && job.status !== 'FAILED') {
+      throw new PipelineError('INVALID_REQUEST', `job ${job.id} is ${job.status}; reassemble works on FINALIZED or FAILED jobs`, { retryable: false });
+    }
+    transition(job, 'ASSEMBLING', 're-assembling from existing clips');
+    job.error = undefined;
+    job.qa = undefined;
+    job.final = undefined;
+    await store.save(job);
+    log.info(`[${job.id}] re-assembling from ${job.scenes.length} existing clips (no new renders)`);
+    return this.run(job.id);
+  }
+
   private async plan(job: Job): Promise<void> {
     const { llm, store, log, provider, promptBuilder } = this.d;
     const dir = store.dir(job.id);
@@ -135,6 +160,51 @@ export class Pipeline {
     }
     await writeFile(path.join(dir, 'strategy.json'), JSON.stringify({ ...job.strategy, selection: job.selection }, null, 2));
     await writeFile(path.join(dir, 'storyboard.json'), JSON.stringify(job.storyboard, null, 2));
+  }
+
+  /**
+   * The human gate: `--plan-only` exports storyboard.json for review, and approving with `resume` must pick up
+   * any edits made there. The edited file is held to the same schema and business rules as model output and is
+   * rejected (job stays PLANNED) rather than paid for if invalid. Prompts are rebuilt for edited scenes unless
+   * the reviewer also hand-edited `video_prompt`, in which case their prompt is kept.
+   */
+  private async applyReviewedStoryboard(job: Job): Promise<void> {
+    const file = path.join(this.d.store.dir(job.id), 'storyboard.json');
+    let raw: string;
+    try {
+      raw = await readFile(file, 'utf8');
+    } catch {
+      return; // no exported file: use the stored storyboard as is
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      throw new PipelineError('INVALID_REQUEST', `storyboard.json is not valid JSON: ${(e as Error).message}`, { retryable: false });
+    }
+    const result = StoryboardSchema.safeParse(parsed);
+    const problems = result.success
+      ? storyboardProblems(result.data, job.brief, this.d.provider.capabilities)
+      : result.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`);
+    if (!result.success || problems.length) {
+      throw new PipelineError('INVALID_REQUEST', `edited storyboard.json rejected (job stays PLANNED): ${problems.join('; ')}`, { retryable: false });
+    }
+    const sb = result.data;
+    const before = job.storyboard;
+    if (before && JSON.stringify(sb) === JSON.stringify(before)) return;
+
+    for (const scene of sb.scenes) {
+      const old = before?.scenes.find((s) => s.id === scene.id);
+      if (scene.video_prompt && old && scene.video_prompt !== old.video_prompt) continue; // reviewer wrote this prompt
+      const { prompt, negativePrompt } = this.d.promptBuilder.build(scene, sb);
+      scene.video_prompt = prompt;
+      scene.negative_prompt = negativePrompt;
+    }
+    job.storyboard = sb;
+    job.scenes = sb.scenes.map((s) => ({ sceneId: s.id, status: 'PENDING', attempts: 0 }));
+    await this.d.store.save(job);
+    await writeFile(file, JSON.stringify(sb, null, 2));
+    this.d.log.info(`[${job.id}] applied reviewed storyboard.json (${sb.scenes.length} scenes, prompts rebuilt)`);
   }
 
   private async assemble(job: Job): Promise<void> {

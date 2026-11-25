@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Storyboard } from '../domain/schemas.js';
-import { FFMPEG, filterPath, probe, run } from './ffmpeg.js';
+import { detectContentArea, FFMPEG, filterPath, isLetterboxed, probe, run } from './ffmpeg.js';
 
 export const BRAND = { navy: '0x0B1D33', teal: '0x3FD0C9', white: 'white' };
 const W = 1080;
@@ -86,7 +86,10 @@ export async function assemble(input: AssembleInput): Promise<string> {
   for (const [i, clip] of input.clips.entries()) {
     args.push('-i', clip.file);
     const d = clip.duration.toFixed(3);
-    let v = `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS},tpad=stop_mode=clone:stop_duration=2,trim=duration=${d},setpts=PTS-STARTPTS`;
+    // Strip bars the model baked into the picture, then scale-to-fill as usual (costs some edge, keeps full-bleed 9:16).
+    const area = await detectContentArea(path.join(input.workDir, clip.file));
+    const debar = area && isLetterboxed(area) ? `crop=${area.w}:${area.h}:${area.x}:${area.y},` : '';
+    let v = `[${i}:v]${debar}scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS},tpad=stop_mode=clone:stop_duration=2,trim=duration=${d},setpts=PTS-STARTPTS`;
     if (clip.text.trim()) {
       v += ',' + (await textLayer(`scene-${i + 1}`, clip.text.toUpperCase(), 20, { fontFile: input.fontFile, size: 68, y: H * 0.14, box: 'black@0.45', boxBorder: 28, fadeIn: i === 0 ? 0 : 0.2 }));
     }

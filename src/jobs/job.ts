@@ -43,7 +43,7 @@ const ALLOWED: Record<JobStatus, JobStatus[]> = {
   GENERATING: ['ASSEMBLING'],
   ASSEMBLING: ['EVALUATING'],
   EVALUATING: ['FINALIZED'],
-  FINALIZED: [],
+  FINALIZED: ['ASSEMBLING'], // `reassemble`: rebuild the ad from the kept clips, no new renders
   FAILED: ['PLANNING', 'GENERATING', 'ASSEMBLING', 'EVALUATING'], // resume re-enters at the failed stage
 };
 

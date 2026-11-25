@@ -58,7 +58,7 @@ export function classifyError(err: unknown): PipelineError {
     return new PipelineError('AUTH', message, { cause: err });
   if (status === 400 || status === 404 || text.includes('invalid_argument'))
     return new PipelineError('INVALID_REQUEST', message, { cause: err });
-  if ((status !== undefined && status >= 500) || /econnreset|etimedout|enotfound|socket hang up|fetch failed|unavailable|deadline/.test(text))
+  if ((status !== undefined && status >= 500) || /econnreset|etimedout|enotfound|socket hang up|fetch failed|unavailable|deadline|aborted|timed out|timeout/.test(text))
     return new PipelineError('TRANSIENT', message, { cause: err });
   return new PipelineError('UNKNOWN', message, { cause: err });
 }

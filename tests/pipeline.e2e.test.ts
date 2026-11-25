@@ -1,3 +1,4 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -52,5 +53,50 @@ describe('pipeline end to end (mock LLM + mock video)', () => {
     expect(done.history.map((h) => h.status)).toEqual(['CREATED', 'PLANNING', 'GENERATING', 'FAILED', 'GENERATING', 'ASSEMBLING', 'EVALUATING', 'FINALIZED']);
     expect(existsSync(path.join(store.dir(job.id), 'final.mp4'))).toBe(true);
     expect(existsSync(path.join(store.dir(job.id), 'report.md'))).toBe(true);
+  }, 120_000);
+});
+
+class RecordingProvider extends MockProvider {
+  prompts: string[] = [];
+  constructor() {
+    super({ latencyMs: 0 });
+  }
+  override async generate(req: VideoRequest) {
+    this.prompts.push(req.prompt);
+    return super.generate(req);
+  }
+}
+
+/**
+ * Risk: the human review gate is cosmetic. `--plan-only` tells the reviewer to edit storyboard.json, so an
+ * approved edit must reach the paid render, and an edit that breaks the rules must never be paid for.
+ */
+describe('plan-only review gate', () => {
+  it('rejects an invalid storyboard.json edit, then renders the reviewed edit with rebuilt prompts', async () => {
+    const config = testConfig(await tmpDir());
+    const store = new JobStore(config.runsDir);
+    const llm = new MockLlm();
+    const provider = new RecordingProvider();
+    const pipeline = new Pipeline({ store, llm, provider, promptBuilder: veoPromptBuilder, config, log: silentLogger });
+
+    const job = await store.create(brief, { provider: 'mock', llm: 'mock', planOnly: true });
+    expect((await pipeline.run(job.id, { planOnly: true })).status).toBe('PLANNED');
+    const file = path.join(store.dir(job.id), 'storyboard.json');
+    const sb = JSON.parse(await readFile(file, 'utf8'));
+
+    sb.scenes[0].duration = 5; // Veo only renders 4/6/8s clips
+    await writeFile(file, JSON.stringify(sb));
+    await expect(pipeline.run(job.id)).rejects.toThrow(/storyboard.json rejected.*duration 5/);
+    expect((await store.load(job.id)).status).toBe('PLANNED');
+    expect(provider.prompts).toEqual([]);
+
+    sb.scenes[0].duration = 4;
+    sb.scenes[0].description = 'A crowded departure gate erupts in chaos around one perfectly calm traveler';
+    await writeFile(file, JSON.stringify(sb));
+    const done = await pipeline.run(job.id);
+
+    expect(done.status).toBe('FINALIZED');
+    expect(done.storyboard!.scenes[0]!.description).toContain('departure gate erupts');
+    expect(provider.prompts.some((p) => p.includes('departure gate erupts in chaos'))).toBe(true);
   }, 120_000);
 });

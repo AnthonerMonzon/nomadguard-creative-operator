@@ -14,6 +14,7 @@ const USAGE = `NomadGuard creative operator
 Usage:
   npm run nomad -- run    [--brief briefs/nomadguard.json] [--provider veo|mock] [--llm gemini|mock] [--angle N] [--plan-only]
   npm run nomad -- resume <jobId>        continue / retry a job (also approves a --plan-only job)
+  npm run nomad -- reassemble <jobId>    rebuild final.mp4 + QA from existing clips (no new renders)
   npm run nomad -- status <jobId>        show job state, scenes and QA
   npm run nomad -- list                  list jobs
 
@@ -77,6 +78,16 @@ async function main() {
       const cfg = loadConfig({ llm: existing.options.llm as LlmBackend, provider: existing.options.provider as VideoProviderName });
       const { pipeline } = createPipeline(cfg, log);
       const result = await pipeline.run(arg);
+      printStatus(result, store);
+      process.exitCode = result.status === 'FAILED' ? 1 : 0;
+      break;
+    }
+    case 'reassemble': {
+      if (!arg) throw new PipelineError('INVALID_REQUEST', 'reassemble needs a job id');
+      const existing = await store.load(arg);
+      const cfg = loadConfig({ llm: existing.options.llm as LlmBackend, provider: existing.options.provider as VideoProviderName });
+      const { pipeline } = createPipeline(cfg, log);
+      const result = await pipeline.reassemble(arg);
       printStatus(result, store);
       process.exitCode = result.status === 'FAILED' ? 1 : 0;
       break;

@@ -1,6 +1,6 @@
 import { existsSync, statSync } from 'node:fs';
 import type { TechnicalReport } from '../domain/schemas.js';
-import { decodeCheck, probe, type ProbeData } from '../media/ffmpeg.js';
+import { decodeCheck, probe, type DecodeResult, type ProbeData } from '../media/ffmpeg.js';
 
 export interface TechnicalSpec {
   minSeconds: number;
@@ -24,7 +24,7 @@ function parseFps(rate?: string): number | null {
 /** Pure decision logic over probe results, kept separate from I/O so it is easy to test. */
 export function evaluateTechnical(
   data: ProbeData | null,
-  decode: { playable: boolean; black: { start: number; end: number }[]; error?: string },
+  decode: DecodeResult,
   spec: TechnicalSpec,
   exists = true,
 ): TechnicalReport {
@@ -55,6 +55,12 @@ export function evaluateTechnical(
     },
     { name: 'audio', pass: !spec.requireAudio || !!audio, detail: audio ? `${audio.codec_name}` : 'no audio stream' },
     { name: 'black_frames', pass: blackTotal < 1.0, detail: `${blackTotal.toFixed(2)}s of black detected` },
+    {
+      // A 9:16 file can still carry a letterboxed picture; on a phone that reads as a broken ad, not a style.
+      name: 'letterbox',
+      pass: (decode.letterboxSeconds ?? 0) < 0.5,
+      detail: decode.letterboxSeconds === undefined ? 'not measured' : `${decode.letterboxSeconds.toFixed(2)}s with baked-in black bars`,
+    },
   ];
 
   return {

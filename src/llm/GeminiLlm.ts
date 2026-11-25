@@ -3,17 +3,22 @@ import type { AppConfig } from '../core/config.js';
 import { PipelineError } from '../core/errors.js';
 import type { LlmClient, LlmRequest } from './LlmClient.js';
 
+const LLM_TIMEOUT_MS = 120_000;
+
 /** Gemini via the free AI Studio API key, or via Vertex AI (ADC) when no key is configured. */
 export class GeminiLlm implements LlmClient {
   readonly name: string;
   private readonly ai: GoogleGenAI;
 
   constructor(private readonly cfg: AppConfig['llm']) {
+    // Without a per-request timeout an overloaded model can leave a call open indefinitely and stall the job;
+    // a timeout surfaces as a TRANSIENT error, so withRetry backs off and tries again.
+    const httpOptions = { timeout: LLM_TIMEOUT_MS };
     if (cfg.backend === 'gemini-api') {
-      this.ai = new GoogleGenAI({ apiKey: cfg.apiKey });
+      this.ai = new GoogleGenAI({ apiKey: cfg.apiKey, httpOptions });
     } else {
       if (!cfg.project) throw new PipelineError('AUTH', 'Set GEMINI_API_KEY, or GOOGLE_CLOUD_PROJECT to use Gemini via Vertex AI.');
-      this.ai = new GoogleGenAI({ vertexai: true, project: cfg.project, location: cfg.location });
+      this.ai = new GoogleGenAI({ vertexai: true, project: cfg.project, location: cfg.location, httpOptions });
     }
     this.name = `gemini:${cfg.model} (${cfg.backend})`;
   }

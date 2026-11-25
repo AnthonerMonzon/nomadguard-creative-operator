@@ -1,0 +1,72 @@
+{
+  "angles": [
+    {
+      "name": "The Unshakable Traveler",
+      "target_emotion": "Serenity",
+      "hook": "Slow-motion close-up of heavy rain pouring down a floor-to-ceiling airport window while red lights blur in the background.",
+      "concept": "Rain pours outside a chaotic terminal while blurred travelers rush around in panic. The camera pans to a calm, stylish traveler sitting quietly in a warm lounge, comfortably sipping coffee. They look out at the tarmac with a subtle, relaxed smile, completely unbothered by the delays.",
+      "cta": "Travel without stress"
+    },
+    {
+      "name": "The Sunset Escape",
+      "target_emotion": "Empowerment",
+      "hook": "A sleek passport leather cover snapping shut against a dramatic golden-hour tarmac sunset.",
+      "concept": "A traveler closes their passport as a jet glides smoothly past a blazing orange sky. The scene transitions to the same traveler walking down a sunlit coastal cliffside in Europe with effortless confidence. The journey continues smoothly despite any unexpected shifts along the way.",
+      "cta": "Protect your next journey"
+    },
+    {
+      "name": "The Lost Luggage Pivot",
+      "target_emotion": "Smug satisfaction",
+      "hook": "An overhead view of a single solitary suitcase spinning around an empty, dimly lit luggage carousel.",
+      "concept": "A lonely bag spins on an empty carousel to show the ultimate travel annoyance. Cut immediately to our protagonist lounging poolside at a luxury resort, taking a sip from a cold drink under a palm tree. They look at the camera with absolute calm, knowing their travel loss is fully covered.",
+      "cta": "Turn travel delays around"
+    },
+    {
+      "name": "The Golden Shield",
+      "target_emotion": "Absolute security",
+      "hook": "A single macro water drop striking a dark liquid surface, generating a warm golden ripple effect in hyper-slow motion.",
+      "concept": "A golden ripple expands outward into a metaphorical shield of light. A frequent traveler walks confidently through a busy, moody terminal surrounded by a soft golden ambient glow. As others stress over boards, the traveler steps into the bright sunshine outside, relaxed and secure.",
+      "cta": "Fly with total confidence"
+    }
+  ],
+  "selection": {
+    "scores": [
+      {
+        "index": 0,
+        "hook_strength": 9,
+        "brief_fit": 9,
+        "ai_feasibility": 9,
+        "sound_off_clarity": 9
+      },
+      {
+        "index": 1,
+        "hook_strength": 7,
+        "brief_fit": 8,
+        "ai_feasibility": 7,
+        "sound_off_clarity": 7
+      },
+      {
+        "index": 2,
+        "hook_strength": 9,
+        "brief_fit": 9,
+        "ai_feasibility": 8,
+        "sound_off_clarity": 9
+      },
+      {
+        "index": 3,
+        "hook_strength": 6,
+        "brief_fit": 7,
+        "ai_feasibility": 5,
+        "sound_off_clarity": 6
+      }
+    ],
+    "selected_index": 0,
+    "why_selected": "Angle 0 delivers an immediate, visually arresting contrast between airport chaos and serene luxury that is highly photorealistic for AI to generate. It maps cleanly to the premium brand identity without requiring risky hand interactions or abstract visual effects.",
+    "audience_insight": "Frequent travelers hate losing control and feeling stuck in airport chaos even more than the financial inconvenience of a flight delay.",
+    "why_it_performs": "The visual jump from moody, rain-soaked airport terminal to warm lounge comfort instantly halts scrolling and establishes an emotional relief state before text overlays land.",
+    "risks": [
+      "Background crowd motion in the terminal background may blur or deform if not kept out of focus.",
+      "Ensuring character consistency between the blurred terminal background shot and the crisp lounge shot."
+    ]
+  }
+}

@@ -10,7 +10,7 @@ import { MockProvider } from './providers/MockProvider.js';
 import type { PromptBuilder, VideoProvider } from './providers/VideoProvider.js';
 import { VeoProvider } from './providers/VeoProvider.js';
 
-/** The only place that knows concrete implementations. Adding Kling/Runway = one more case here. */
+/** The only place that knows concrete implementations. Adding another provider = one more case here. */
 export function createProvider(cfg: AppConfig): { provider: VideoProvider; promptBuilder: PromptBuilder } {
   switch (cfg.video.provider) {
     case 'veo':

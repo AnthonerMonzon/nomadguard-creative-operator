@@ -44,10 +44,10 @@ export function loadConfig(overrides: { llm?: LlmBackend; provider?: VideoProvid
 
   return {
     runsDir: path.resolve(env.RUNS_DIR || 'runs'),
-    llm: { backend: llmBackend, model: env.LLM_MODEL || 'gemini-2.5-flash', apiKey: env.GEMINI_API_KEY || undefined, project, location },
+    llm: { backend: llmBackend, model: env.LLM_MODEL || 'gemini-3.8-flash', apiKey: env.GEMINI_API_KEY || undefined, project, location },
     video: {
       provider: overrides.provider ?? ((env.VIDEO_PROVIDER as VideoProviderName) || 'veo'),
-      model: env.VEO_MODEL || 'veo-3.0-generate-001',
+      model: env.VEO_MODEL || 'veo-3.1-generate-001',
       resolution: env.VEO_RESOLUTION || '1080p',
       generateAudio: (env.VEO_GENERATE_AUDIO ?? 'true') !== 'false',
       project,

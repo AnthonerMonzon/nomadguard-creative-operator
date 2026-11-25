@@ -1,8 +1,10 @@
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FFMPEG, run } from '../src/media/ffmpeg.js';
+import { assemble } from '../src/media/assemble.js';
+import { detectContentArea, FFMPEG, isLetterboxed, run } from '../src/media/ffmpeg.js';
 import { evaluateTechnical, runTechnicalQa, SOCIAL_SPEC } from '../src/qa/technical.js';
-import { tmpDir } from './helpers.js';
+import { storyboard, tmpDir } from './helpers.js';
 
 /** Risk: shipping a video that a platform rejects or crops (wrong ratio/length) or that doesn't play. */
 describe('technical QA', () => {
@@ -41,4 +43,38 @@ describe('technical QA', () => {
 
     expect((await runTechnicalQa(path.join(dir, 'missing.mp4'))).exists).toBe(false);
   }, 30_000);
+});
+
+/**
+ * Risk: the model returns a correctly sized 9:16 file with a letterboxed picture baked in (seen on a real
+ * Veo 3.1 render). Dimensions-only checks pass it, and on a phone it looks broken. Uses real ffmpeg output.
+ */
+describe('baked-in letterbox', () => {
+  const failed = (r: Awaited<ReturnType<typeof runTechnicalQa>>) => r.checks.filter((c) => !c.pass).map((c) => c.name);
+  // 1080x1920 frame whose picture only fills a 1080x1596 band, like the real Veo clip.
+  const letterboxed = (out: string, seconds: number) =>
+    run(FFMPEG, ['-y', '-v', 'error', '-f', 'lavfi', '-i', `testsrc2=s=1080x1596:r=30:d=${seconds}`, '-f', 'lavfi', '-i', `sine=d=${seconds}`,
+      '-vf', 'pad=1080:1920:0:162:black', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', out]);
+
+  it('technical QA flags it, and assembly crops it back to full-bleed 9:16', async () => {
+    const dir = await tmpDir();
+    const boxed = path.join(dir, 'boxed.mp4');
+    await letterboxed(boxed, 12);
+    const r = await runTechnicalQa(boxed);
+    expect(r.resolution).toBe('1080x1920'); // dimensions alone look fine...
+    expect(failed(r)).toEqual(['letterbox']); // ...but the picture isn't
+
+    await mkdir(path.join(dir, 'clips'));
+    await letterboxed(path.join(dir, 'clips', 'scene-1.mp4'), 4);
+    const out = await assemble({
+      workDir: dir,
+      clips: [{ file: 'clips/scene-1.mp4', duration: 4, text: '' }],
+      storyboard: storyboard(),
+      brand: 'NomadGuard',
+      output: 'final.mp4',
+    });
+    const area = await detectContentArea(out, { maxSeconds: 4 });
+    expect(area).not.toBeNull();
+    expect(isLetterboxed(area!)).toBe(false);
+  }, 60_000);
 });

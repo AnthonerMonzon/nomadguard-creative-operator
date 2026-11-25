@@ -1,0 +1,52 @@
+{
+  "title": "The Unshakable Traveler",
+  "style_bible": {
+    "protagonist": "A polished woman in her early 30s with warm olive skin tone, dark hair styled in a low sleek bun, and a calm, relaxed facial expression.",
+    "wardrobe": "Minimalist charcoal grey cashmere turtleneck sweater with clean modern lines, accessorized with small gold hoop earrings.",
+    "world": "A modern international airport at stormy dusk: a busy glass-walled departure concourse and, beside it, an exclusive quiet lounge, both with floor-to-ceiling windows overlooking a rain-slicked dark tarmac",
+    "look": "Photorealistic 35mm film aesthetic, rich depth of field, warm indoor ambient lighting contrasting cool blue storm tones outdoors."
+  },
+  "scenes": [
+    {
+      "id": 1,
+      "purpose": "hook",
+      "duration": 4,
+      "description": "A crowded departure gate erupts after a cancellation: stressed travelers rush past in heavy motion blur, dragging suitcases, one man throws his hands up in frustration. In the exact centre of the frame the protagonist stands perfectly still and composed, sharply in focus, untouched by the chaos around her, rain streaking the tall windows behind",
+      "camera": "Locked-off medium-wide shot at eye level, 35mm lens, very slow push-in toward the protagonist",
+      "action": "The crowd streaks past her in motion blur while she stays perfectly still, then calmly lifts her chin and looks ahead with quiet confidence",
+      "on_screen_text": "Flight cancelled again?",
+      "audio": "Busy terminal commotion, overlapping frustrated murmurs, rolling suitcase wheels, rain on glass, a distant boarding chime",
+      "video_prompt": "Locked-off medium-wide shot at eye level, 35mm lens, very slow push-in toward the protagonist. A crowded departure gate erupts after a cancellation: stressed travelers rush past in heavy motion blur, dragging suitcases, one man throws his hands up in frustration. In the exact centre of the frame the protagonist stands perfectly still and composed, sharply in focus, untouched by the chaos around her, rain streaking the tall windows behind. The protagonist is a polished woman in her early 30s with warm olive skin tone, dark hair styled in a low sleek bun, and a calm, relaxed facial expression, wearing minimalist charcoal grey cashmere turtleneck sweater with clean modern lines, accessorized with small gold hoop earrings. Action: The crowd streaks past her in motion blur while she stays perfectly still, then calmly lifts her chin and looks ahead with quiet confidence. Setting: A modern international airport at stormy dusk: a busy glass-walled departure concourse and, beside it, an exclusive quiet lounge, both with floor-to-ceiling windows overlooking a rain-slicked dark tarmac. Look: Photorealistic 35mm film aesthetic, rich depth of field, warm indoor ambient lighting contrasting cool blue storm tones outdoors. Photorealistic premium commercial footage, natural skin texture, realistic motion. Vertical 9:16 composition with the subject in the centre of the frame, leaving the top fifth clear. Audio: Busy terminal commotion, overlapping frustrated murmurs, rolling suitcase wheels, rain on glass, a distant boarding chime. No dialogue, no music.",
+      "negative_prompt": "text, captions, subtitles, letters, signage text, logos, watermark, phone screen close-up, cartoon, CGI, 3d render, distorted hands, extra fingers, deformed face, face morphing, flicker, low resolution, blurry, oversaturated"
+    },
+    {
+      "id": 2,
+      "purpose": "turn",
+      "duration": 4,
+      "description": "Inside the warm lounge, the protagonist sits in a leather armchair holding a matte black cup, completely serene while out-of-focus figures move quickly past.",
+      "camera": "Medium shot, 50mm lens, gentle horizontal pan right.",
+      "action": "The protagonist slowly brings the ceramic cup to her lips for a calm sip.",
+      "on_screen_text": "Don't let delays control you.",
+      "audio": "Muffled lounge acoustic hum and soft ceramic clink.",
+      "video_prompt": "Medium shot, 50mm lens, gentle horizontal pan right. Inside the warm lounge, the protagonist sits in a leather armchair holding a matte black cup, completely serene while out-of-focus figures move quickly past. The protagonist is a polished woman in her early 30s with warm olive skin tone, dark hair styled in a low sleek bun, and a calm, relaxed facial expression, wearing minimalist charcoal grey cashmere turtleneck sweater with clean modern lines, accessorized with small gold hoop earrings. Action: The protagonist slowly brings the ceramic cup to her lips for a calm sip. Setting: A modern international airport at stormy dusk: a busy glass-walled departure concourse and, beside it, an exclusive quiet lounge, both with floor-to-ceiling windows overlooking a rain-slicked dark tarmac. Look: Photorealistic 35mm film aesthetic, rich depth of field, warm indoor ambient lighting contrasting cool blue storm tones outdoors. Photorealistic premium commercial footage, natural skin texture, realistic motion. Vertical 9:16 composition with the subject in the centre of the frame, leaving the top fifth clear. Audio: Muffled lounge acoustic hum and soft ceramic clink. No dialogue, no music.",
+      "negative_prompt": "text, captions, subtitles, letters, signage text, logos, watermark, phone screen close-up, cartoon, CGI, 3d render, distorted hands, extra fingers, deformed face, face morphing, flicker, low resolution, blurry, oversaturated"
+    },
+    {
+      "id": 3,
+      "purpose": "resolution",
+      "duration": 4,
+      "description": "Close portrait of the protagonist gazing out toward the storm with complete serenity and a subtle, confident smile.",
+      "camera": "Close-up portrait shot, 85mm lens, slow push-in.",
+      "action": "The protagonist turns her head slightly toward the glass with a gentle smile.",
+      "on_screen_text": "Stay calm through disruptions.",
+      "audio": "Soft rain on glass fading into a quiet, warm room tone",
+      "video_prompt": "Close-up portrait shot, 85mm lens, slow push-in. Close portrait of the protagonist gazing out toward the storm with complete serenity and a subtle, confident smile. The protagonist is a polished woman in her early 30s with warm olive skin tone, dark hair styled in a low sleek bun, and a calm, relaxed facial expression, wearing minimalist charcoal grey cashmere turtleneck sweater with clean modern lines, accessorized with small gold hoop earrings. Action: The protagonist turns her head slightly toward the glass with a gentle smile. Setting: A modern international airport at stormy dusk: a busy glass-walled departure concourse and, beside it, an exclusive quiet lounge, both with floor-to-ceiling windows overlooking a rain-slicked dark tarmac. Look: Photorealistic 35mm film aesthetic, rich depth of field, warm indoor ambient lighting contrasting cool blue storm tones outdoors. Photorealistic premium commercial footage, natural skin texture, realistic motion. Vertical 9:16 composition with the subject in the centre of the frame, leaving the top fifth clear. Audio: Soft rain on glass fading into a quiet, warm room tone. No dialogue, no music.",
+      "negative_prompt": "text, captions, subtitles, letters, signage text, logos, watermark, phone screen close-up, cartoon, CGI, 3d render, distorted hands, extra fingers, deformed face, face morphing, flicker, low resolution, blurry, oversaturated"
+    }
+  ],
+  "end_card": {
+    "headline": "Travel with absolute confidence.",
+    "cta": "Travel without stress",
+    "duration": 2.5
+  }
+}
